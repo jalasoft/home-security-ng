@@ -1,0 +1,20 @@
+server {
+
+  listen 443 ssl;
+
+  ssl_certificate {SSL_SERVER_CERT};
+  ssl_certificate_key {SSL_SERVER_KEY};
+ 
+  ssl_client_certificate {SSL_CLIENT_CA}; 
+  ssl_verify_client optional;
+ 
+  access_log {LOG_DIR}/nginx.log;
+
+  location /api/camera/ {
+    if ($ssl_client_verify != SUCCESS) {
+      return 403;
+    }
+
+    proxy_pass http://localhost:{LOCAL_PORT};
+  }
+}
