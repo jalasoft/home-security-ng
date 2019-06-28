@@ -8,7 +8,7 @@ plugin=python3
 master=true
 processes=2
 
-pyargv=logfile={LOGFILE}
+pyargv=logfile={LOGFILE} camera_lib={CAMERA_LIB}
 
 #socket=127.0.0.1:8898
 http-socket=0.0.0.0:{LOCAL_PORT}

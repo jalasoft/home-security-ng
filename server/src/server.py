@@ -3,6 +3,7 @@ from flask import request
 import logging
 import parameters
 import json
+import camera
 
 app = Flask(__name__)
 
@@ -10,6 +11,13 @@ args = parameters.Parameters.parse()
 logfile = args.param("logfile").value
 
 logging.basicConfig(filename=logfile, level=logging.DEBUG)
+
+camera_lib = args.param("camera_lib")
+
+logging.info("Initializing camera library...")
+
+camera.init(camera_lib.value)
+camera1 = camera.camera_handler("/dev/video0")
 
 @app.route("/api/camera/<camera_name>/")
 def hello(camera_name, methods =  ['GET']):

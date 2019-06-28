@@ -34,7 +34,7 @@ CAMERA_SOURCES=$(wildcard $(CAMERA_SOURCE_DIR)/src/*.*)
 .PHONY: run install, prepare_dir, install_prerequisites, prepare_venv, clean reload reload_server stop start
 
 
-run: $(SERVER_DIR)/lib/camera_handler.so $(SERVER_TARGET_FILES) $(ROOT_DIR)/nginx.conf $(ROOT_DIR)/uwsgi.ini $(ROOT_DIR)/start.sh $(ROOT_DIR)/stop.sh
+run: $(SERVER_DIR)/lib/camera_handler.so $(SERVER_TARGET_FILES) $(ROOT_DIR)/nginx.conf $(ROOT_DIR)/uwsgi.ini $(ROOT_DIR)/start.sh $(ROOT_DIR)/stop.sh $(SERVER_DIR)/app/camera.py
 
 
 $(SERVER_DIR)/lib/camera_handler.so: $(CAMERA_SOURCES)
@@ -44,6 +44,9 @@ $(SERVER_DIR)/lib/camera_handler.so: $(CAMERA_SOURCES)
 	cd build; \
 	cp $(@F) $(@D); \
 	cp $(CAMERA_SOURCE_DIR)/camera.py $(SERVER_DIR)/app
+
+$(SERVER_DIR)/app/camera.py: $(CAMERA_SOURCE_DIR)/camera.py
+	cp $^ $@
 
 $(SERVER_DIR)/app/%.py: $(SERVER_SOURCE_DIR)/src/%.py
 	cp $^ $@
@@ -63,6 +66,7 @@ $(ROOT_DIR)/uwsgi.ini: $(SERVER_SOURCE_DIR)/conf/uwsgi.ini_template
 	    -e 's#{MODULE_ROOT_DIR}#$(SERVER_DIR)/app#g' \
 	    -e 's#{LOCAL_PORT}#$(LOCAL_PORT)#g' \
 	    -e 's#{LOGFILE}#$(LOG_DIR)/main.log#g' \
+	    -e 's#{CAMERA_LIB}#$(SERVER_DIR)/lib/camera_handler.so#g' \
 	    $< > $@;
 
 $(ROOT_DIR)/start.sh: $(SERVER_SOURCE_DIR)/conf/start.sh_template
