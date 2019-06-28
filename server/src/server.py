@@ -2,6 +2,7 @@ from flask import Flask
 from flask import request
 import logging
 import parameters
+import json
 
 app = Flask(__name__)
 
@@ -17,7 +18,15 @@ def hello(camera_name, methods =  ['GET']):
     refresh = request.args.get("refresh")
 
     logging.info("refresh je " + refresh)
-    return "Nazdarek...."
+
+    payload = {
+      "resolution": "bleeee",
+      "data": "obrazek"
+    }
+
+    asStr = json.dumps(payload)
+
+    return asStr
 
 
 if __name__ == "__main__":

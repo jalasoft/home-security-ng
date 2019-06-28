@@ -1,12 +1,13 @@
 #!/bin/bash
 
-if [ -f uwsgi.pid ]; then
+if [ -f {UWSGI_PID} ]; then
   echo "Server by mel bezet..."
-  exit 1
+  exit 0
 fi
 
-uwsgi --ini uwsgi.ini &>> {LOG_FILE} &
+uwsgi --ini {UWSGI_INI} &>> {LOG_FILE} &
 
-echo $! > uwsgi.pid
+echo $! > {UWSGI_PID}
 
 echo "Server nastartovan"
+

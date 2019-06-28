@@ -2,7 +2,7 @@
 
 if [ ! -f uwsgi.pid ]; then
   echo "Server nebezi..."
-  exit 1
+  exit 0
 fi	
 
 pid=$(cat uwsgi.pid)

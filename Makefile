@@ -31,7 +31,7 @@ CAMERA_SOURCES=$(wildcard $(CAMERA_SOURCE_DIR)/src/*.*)
 
 #######################################################################
 
-.PHONY: run install, prepare_dir, install_prerequisites, prepare_venv, clean
+.PHONY: run install, prepare_dir, install_prerequisites, prepare_venv, clean reload reload_server stop start
 
 
 run: $(SERVER_DIR)/lib/camera_handler.so $(SERVER_TARGET_FILES) $(ROOT_DIR)/nginx.conf $(ROOT_DIR)/uwsgi.ini $(ROOT_DIR)/start.sh $(ROOT_DIR)/stop.sh
@@ -67,8 +67,10 @@ $(ROOT_DIR)/uwsgi.ini: $(SERVER_SOURCE_DIR)/conf/uwsgi.ini_template
 
 $(ROOT_DIR)/start.sh: $(SERVER_SOURCE_DIR)/conf/start.sh_template
 	sed -e 's#{LOG_FILE}#$(LOG_DIR)/uwsgi.log#g' \
-	    $< > $@
-	chmod ugo=rx $@
+	    -e 's#{UWSGI_PID}#$(ROOT_DIR)/uwsgi.pid#g' \
+	    -e 's#{UWSGI_INI}#$(ROOT_DIR)/uwsgi.ini#g' \
+	    $< > $@;
+	chmod u=rwx,go=rx $@
 
 $(ROOT_DIR)/stop.sh: $(SERVER_SOURCE_DIR)/conf/stop.sh
 	cp -f $< $@
@@ -91,6 +93,20 @@ install_prerequisites:
 	cd ..; \
 	python -m pip install -r $(SERVER_SOURCE_DIR)/requirements.txt; \
 	deactivate;
+
+###########################################################################
+
+reload: run reload_server
+
+reload_server: stop start
+
+stop:
+	cd $(ROOT_DIR) && ./stop.sh && sleep 3
+
+start:
+	cd $(ROOT_DIR) && ./start.sh
+
+###########################################################################
 
 clean:
 	rm -rf $(ROOT_DIR)
