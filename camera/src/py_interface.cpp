@@ -2,8 +2,8 @@
 
 extern "C" {
 
-  camera_handler::camera* new_camera(const char* device_file) {
-    return new camera_handler::camera(std::string(device_file));
+  camera_handler::camera* new_camera(const char* device_file, const char* log_file) {
+    return new camera_handler::camera(std::string(device_file), std::string(log_file));
   }
 
   const char* camera_file_path(camera_handler::camera* camera) {

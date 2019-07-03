@@ -66,6 +66,7 @@ $(ROOT_DIR)/uwsgi.ini: $(SERVER_SOURCE_DIR)/conf/uwsgi.ini_template
 	    -e 's#{MODULE_ROOT_DIR}#$(SERVER_DIR)/app#g' \
 	    -e 's#{LOCAL_PORT}#$(LOCAL_PORT)#g' \
 	    -e 's#{LOGFILE}#$(LOG_DIR)/main.log#g' \
+	    -e 's#{CAMERA_LOGFILE}#$(LOG_DIR)/camera.log#g' \
 	    -e 's#{CAMERA_LIB}#$(SERVER_DIR)/lib/camera_handler.so#g' \
 	    $< > $@;
 

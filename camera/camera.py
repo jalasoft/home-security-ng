@@ -32,9 +32,10 @@ def init(libfile = 'build/camera_handler.so'):
 
 class camera_handler:
 
-    def __init__(self, video_file = '/dev/video0'):  
-        string_as_bytes = str.encode(video_file)
-        self.handler = _lib.new_camera(ctypes.c_char_p(string_as_bytes))
+    def __init__(self, video_file, log_file):  
+        video_file_as_bytes = str.encode(video_file)
+        log_file_as_bytes = str.encode(log_file)
+        self.handler = _lib.new_camera(ctypes.c_char_p(video_file_as_bytes), ctypes.c_char_p(log_file_as_bytes))
 
     def file_path(self):
         return _lib.camera_file_path(self.handler)
@@ -69,7 +70,20 @@ class supported_resolutions:
     def medium(self):
         res_handler = _lib.supported_resolutions_medium(self.handler)
         return resolution(res_handler)
-    
+
+    def by_name(self, name):
+        print("by name: " + name)
+
+        if name == "worst":
+            return self.worst()
+        elif name == "medium":
+            return self.medium()
+        elif name == "best":
+            return self.best()
+        else:
+            raise Exception("Unexpected name of resolution: '" + name + "'.")
+
+
     def size(self):
         return _lib.supported_resolutions_size(self.handler)
 
@@ -102,12 +116,6 @@ class resolution:
         self.height = _lib.resolution_height(self.handler)
         self.width = _lib.resolution_width(self.handler)
 
-    def width(self):
-        return self.width
-
-    def height(self):
-        return self.height
-
     def __str__(self):
         return "resolution[" + str(self.width) + "x" + str(self.height) + "]"
 
@@ -137,7 +145,7 @@ if __name__ == "__main__":
         
     init()
 
-    with camera_handler('/dev/video0') as camera:
+    with camera_handler('/dev/video0', 'camera.log') as camera:
         resolutions = camera.supported_resolutions()
 
         print("size: " + str(resolutions.size()))
@@ -147,7 +155,8 @@ if __name__ == "__main__":
 
         for r in resolutions:
             print(r)
-
+        
+        
         with camera.take_frame(resolutions.best()) as frame:
             print("size: " + str(frame.size()))
         
@@ -155,4 +164,4 @@ if __name__ == "__main__":
             print("writing frame into obj.jpg")
             with open("obr.jpg", "wb") as file:
                 file.write(data)
-
+        

@@ -14,7 +14,8 @@
 #include <linux/videodev2.h>
 #include <chrono>
 #include <ctime>
-
+#include <chrono>
+#include <thread>
 
 namespace camera_handler {
 
@@ -168,9 +169,6 @@ class logger {
     }
 
     std::ostream& info() {
-      //clock::time_point time = clock::now();
-      //std::time_t t = clock::to_time_t(time);
-
       return stream << "INFO " << ": ";
     }
 
@@ -178,6 +176,48 @@ class logger {
       stream.close();
     }
 };
+
+class file_descriptor {
+
+  const int attempts_total = 30;
+  const int attempt_delay_millis = 200;
+
+  int descriptor_;
+  logger* logger_;
+
+  public:
+    file_descriptor(const std::string& path, logger* l) : logger_(l) {
+      unsigned int attempt_counter = 0;
+      
+      do {
+	logger_->info() << "Attempt " << attempt_counter << " to open camera file " << path << std::endl;      
+        descriptor_ = open(path.c_str(), O_RDWR);
+
+	if (descriptor_ > 0) {
+	  return;
+	}
+	
+	logger_->info() << "Attempt was not successfull: " << descriptor_ << std::endl;
+
+	std::this_thread::sleep_for(std::chrono::milliseconds(attempt_delay_millis));
+      } while(descriptor_ < 0 && attempt_counter++ < attempts_total);      
+
+      logger_->info() << "No attempt has been successfull" << std::endl;
+
+      throw new camera_error(path, "Cannot open file");
+    }
+
+    int descriptor() {
+      return descriptor_;
+    }
+
+    ~file_descriptor() {
+      logger_->info() << "Closing file " << descriptor_ << std::endl;
+      int g = close(descriptor_);
+      logger_->info() << "result: " << g << std::endl;
+    }
+};
+
 
 //-------------------------------------------------------------------------------
 class camera {
@@ -202,14 +242,13 @@ class camera {
   public:
     
     camera(const std::string& path = "/dev/video0", const std::string& log_file = "camera.log") : path_{path}, logger_{log_file} {
-      int fd = open_file_repeatedly(path);
+      file_descriptor file(path, &logger_);
+      int fd = file.descriptor();
 
       check_video_device(fd);
       check_supported_format(fd);
 
       resolutions_ = new resolutions(load_supported_resolutions(fd));
-
-      close(fd);
     }
 
     std::string file_path() const {
@@ -223,11 +262,11 @@ class camera {
     std::string to_string() const;
 
     frame* take_frame(resolution*);
+    frame* take_frame_repeatedly(resolution*);
 
     ~camera() {
       delete resolutions_;
     }
 };
-
 }
 #endif

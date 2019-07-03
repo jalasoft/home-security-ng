@@ -4,32 +4,18 @@
 #include <fstream>
 #include <vector>
 #include <cstdlib>
-#include <chrono>
-#include <thread>
 #include <tuple>
 #include <cstring>
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 #include <sys/mman.h>
-
+#include <errno.h>
 
 namespace camera_handler {
 
 std::ostream& operator<<(std::ostream& stream, const resolution& res) {
   stream << res.to_string();
   return stream;
-}
-
-int camera::open_file_repeatedly(const std::string& path) {
- 
-  logger_.info() << "Opening camera file " << path << std::endl;
-  int fd;	
-  
-  while((fd = open(path.c_str(), O_RDWR)) < 0) {
-    logger_.info() << "File " << path << " could not be open, repeating..." << std::endl;
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-  }
-  return fd;
 }
 
 std::string camera::to_string() const {
@@ -95,18 +81,35 @@ std::vector<resolution*>* camera::load_supported_resolutions(int& fd) {
   return result; 
 }
 
+frame* camera::take_frame_repeatedly(resolution* res) {
+  
+  while(1) {
+    try {
+      return take_frame(res);
+    } catch(camera_error& err) {
+      logger_.info() << "Error occurred during take frame." << std::endl;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));	
+  }
+}
+
 frame* camera::take_frame(resolution* res) {
   
   logger_.info() << "Taking frame with " << *res << std::endl;
 
-  int fd = open(path_.c_str(), O_RDWR);
+  file_descriptor file(path_, &logger_);
+  int fd = file.descriptor();
+  
   
   set_frame_format(fd, res);
+  
   request_buffer(fd, 1);
 
+  
   std::tuple<v4l2_buffer, void*> buff_and_ptr = query_buffer(fd, 0);
-
+  
   v4l2_buffer buffer = std::get<0>(buff_and_ptr);
+  void* ptr = std::get<1>(buff_and_ptr);
 
   //---new buffer---
   v4l2_buffer b;
@@ -119,18 +122,20 @@ frame* camera::take_frame(resolution* res) {
   activate_streaming(fd, b);
   queue_buffer(fd, b);
   dequeue_buffer(fd, b);
-
-  void* ptr = std::get<1>(buff_and_ptr);
-
+ 
   char* data = (char*) malloc(buffer.length);
   memcpy(data, (char*) ptr, buffer.length);
 
+  munmap(ptr, buffer.length);
+
   deactivate_streaming(fd, b);
 
-  close(fd);
-
+  //int* number = new int(34);
+  //char* data = (char*) number;
+  
   logger_.info() << "Frame taken successfully. " << std::endl;
 
+  //return new frame(data, sizeof(int), res);
   return new frame(data, buffer.length, res);
 }
 
@@ -142,7 +147,13 @@ void camera::set_frame_format(int fd, resolution* res) {
   f.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
   f.fmt.pix.field = V4L2_FIELD_NONE;
 
+
+  //while(ioctl(fd, VIDIOC_S_FMT, &f) != 0) {
+  //  logger_.info() << "Attempting to set up frame format." << std::endl;
+  //}
+
   if (ioctl(fd, VIDIOC_S_FMT, &f) != 0) {
+	  std::cout << "errno: " << errno << std::endl;
     throw camera_error(path_, "Cannot specify format of frame.");
   }
 }
