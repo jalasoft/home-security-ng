@@ -104,7 +104,6 @@ frame* camera::take_frame(resolution* res) {
   set_frame_format(fd, res);
   
   request_buffer(fd, 1);
-
   
   std::tuple<v4l2_buffer, void*> buff_and_ptr = query_buffer(fd, 0);
   
@@ -130,12 +129,8 @@ frame* camera::take_frame(resolution* res) {
 
   deactivate_streaming(fd, b);
 
-  //int* number = new int(34);
-  //char* data = (char*) number;
-  
   logger_.info() << "Frame taken successfully. " << std::endl;
 
-  //return new frame(data, sizeof(int), res);
   return new frame(data, buffer.length, res);
 }
 
@@ -147,13 +142,7 @@ void camera::set_frame_format(int fd, resolution* res) {
   f.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
   f.fmt.pix.field = V4L2_FIELD_NONE;
 
-
-  //while(ioctl(fd, VIDIOC_S_FMT, &f) != 0) {
-  //  logger_.info() << "Attempting to set up frame format." << std::endl;
-  //}
-
   if (ioctl(fd, VIDIOC_S_FMT, &f) != 0) {
-	  std::cout << "errno: " << errno << std::endl;
     throw camera_error(path_, "Cannot specify format of frame.");
   }
 }

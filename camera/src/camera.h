@@ -1,6 +1,16 @@
 #ifndef __CAMERA_H__
 #define __CAMERA_H __
 
+#include <vector>
+#include <string>
+#include <linux/videodev2.h>
+
+#include "logger.h"
+#include "resolution.h"
+#include "file_descriptor.h"
+#include "frame.h"
+
+/*
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -16,210 +26,11 @@
 #include <ctime>
 #include <chrono>
 #include <thread>
+*/
+
 
 namespace camera_handler {
 
-class camera_error : public std::exception {
-
-  std::string file_path;
-  std::string reason;
-  
-  public:
-	            
-  camera_error(std::string path, const char* r) : file_path{path}, reason{r} {}
-		      
-  virtual const char* what() const throw() {
-    return reason.c_str();
-  }  
-};
-
-//------------------------------------------------------------------------------
-
-class resolution {
- 
-  unsigned int width_;
-  unsigned int height_;
-  unsigned int total_points_;
-
-  friend class resolutions;
-
-  public:
-  
-  resolution(unsigned int width, unsigned int height) : width_{width}, height_{height}, total_points_(width * height) {}
-
-  
-  unsigned int width() const {
-    return width_;
-  }
-
-  unsigned int height() const {
-    return height_;
-  }
-
-  std::string to_string() const {
-    std::stringstream stream;
-    stream << "resolution[" << width_ << "x" << height_ << "]";
-    return stream.str();
-  }
-
-  bool operator==(resolution& other) {
-    return this->width_ == other.width_ && this->height_ == other.height_;
-  }
-
-  bool operator<(resolution* other) {
-    return this->total_points_ < other->total_points_;
-  }
-};
-
-std::ostream& operator<<(std::ostream& stream, const resolution& res);
-
-//-------------------------------------------------------------------------------
-
-class resolutions {
-
-  std::vector<resolution*>* resolutions_;
-
-  static bool trid(resolution* r1, resolution* r2) {
-    return r1->total_points_ > r2->total_points_;
-  }
-
-  public:
-  
-  resolutions(std::vector<resolution*>* r) : resolutions_{r} {
-    if (r->empty()) {
-      throw std::invalid_argument("Resolutions must not be empty.");
-    }  
-    std::sort(resolutions_->begin(), resolutions_->end(), resolutions::trid);
-  }
-  
-  resolution* worst() {
-    return resolutions_->back();
-  }
-
-  resolution* best() {
-    return resolutions_->front();
-  }
-
-  resolution* medium() {
-    return resolutions_->operator[](size() / 2);
-  }
-
-  unsigned int size() {
-    return resolutions_->size();
-  }
-
-  resolution* operator[](int index) {
-    return resolutions_->operator[](index);
-  }
-
-  ~resolutions() {
-    for(resolution* r : *resolutions_) {
-       delete r;
-    }
-
-    delete resolutions_;
-  }
-};
-
-//-------------------------------------------------------------------------------
-
-class frame {
-
-  char* ptr_;
-  const size_t size_;
-  const resolution* res_;
-
-  public:
-  
-  frame(char* ptr, size_t size, resolution* res) : ptr_(ptr), size_(size), res_(res) {}
-
-  const resolution* res() const {
-    return res_;
-  }
-
-  size_t size() const {
-    return size_;
-  }
-
-  char* ptr() {
-     return ptr_;
-  }
-
-  void to_file(std::string file) {
-    std::ofstream o;
-    o.open(file.c_str(), std::ios::binary | std::ios::app);
-    o.write(ptr_, size_);
-    o.close(); 
-  }
-
-  ~frame() {
-    free(ptr_);
-  }
-};
-
-class logger {
-
-  std::ofstream stream;
-  
-  using clock = std::chrono::system_clock;
-
-  public:
-    logger(const std::string& file) {
-      stream.open(file, std::ofstream::app);
-    }
-
-    std::ostream& info() {
-      return stream << "INFO " << ": ";
-    }
-
-    ~logger() {
-      stream.close();
-    }
-};
-
-class file_descriptor {
-
-  const int attempts_total = 30;
-  const int attempt_delay_millis = 200;
-
-  int descriptor_;
-  logger* logger_;
-
-  public:
-    file_descriptor(const std::string& path, logger* l) : logger_(l) {
-      unsigned int attempt_counter = 0;
-      
-      do {
-	logger_->info() << "Attempt " << attempt_counter << " to open camera file " << path << std::endl;      
-        descriptor_ = open(path.c_str(), O_RDWR);
-
-	if (descriptor_ > 0) {
-	  return;
-	}
-	
-	logger_->info() << "Attempt was not successfull: " << descriptor_ << std::endl;
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(attempt_delay_millis));
-      } while(descriptor_ < 0 && attempt_counter++ < attempts_total);      
-
-      logger_->info() << "No attempt has been successfull" << std::endl;
-
-      throw new camera_error(path, "Cannot open file");
-    }
-
-    int descriptor() {
-      return descriptor_;
-    }
-
-    ~file_descriptor() {
-      logger_->info() << "Closing file " << descriptor_ << std::endl;
-      int g = close(descriptor_);
-      logger_->info() << "result: " << g << std::endl;
-    }
-};
-
-
-//-------------------------------------------------------------------------------
 class camera {
 
   std::string path_;
