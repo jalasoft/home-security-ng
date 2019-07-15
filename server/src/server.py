@@ -3,8 +3,9 @@ from flask import request
 import logging
 import parameters
 import json
-import camera
 import base64
+from camera_registry import camera_registry
+
 
 app = Flask(__name__)
 
@@ -21,44 +22,45 @@ logging.debug("Camera logs directed to " + camera_log_file)
 
 _qualities = [ "worst", "medium", "best" ]
 
-camera.init(camera_lib)    
-    
-cam = camera.camera_handler('/dev/video0', camera_log_file)
+
+cameras = camera_registry(camera_lib, camera_log_file)
 
 def _extract_resolution(cam, quality_id):
     if quality_id is None:
         quality_id = 0
 
     res = cam.supported_resolutions()
-    
-    if int(quality_id) < 0:
+   
+    try:
+        quality_id = int(quality_id)
+    except ValueError:
+        if quality_id == "worst":
+            return res.worst()
+        elif quality_id == "medium":
+            return res.medium()
+        elif quality_id == "best":
+            return res.best()
+        else:
+            raise Exception("Quality must be a word 'worst', 'medium', 'best' or a number >= 0")
+
+    if quality_id < 0:
         raise Exception("Quality must be a positive number.")
 
-    if int(quality_id) >= res.size():
+    if quality_id >= res.size():
         raise Exception("Quality must not be greater than " + str(res.size()) + ".")
 
-    return res[int(quality_id)]
-
-def _get_resolution(value, camera):
-    if value == "worst":
-        print("davam WORST")
-        return camera.supported_resolutions().worst()
-    elif value == "medium":
-        print("davam MEDIUM")
-        return camera.supported_resolutions().medium()
-    elif value == "best":
-        print("davam BEST")
-        return camera.supported_resolutions().best()
-    else:
-        raise Exception("Unexpected resolution name '" + value + "'.")
-
+    return res[quality_id]
 
 @app.route("/api/camera/<camera_name>/resolution")
 def get_supported_resolutions(camera_name, methods = ['GET']):
     logging.info("Supported resolutions requested for camera '" + camera_name + "'.")
     
+    if camera_name not in cameras:
+        return "No camera '" + camera_name + "' found.", 400
+
     payload = []
-    resolutions = cam.supported_resolutions()
+
+    resolutions = cameras[camera_name].supported_resolutions()
 
     for i in range(0, resolutions.size()):
         res = resolutions[i]
@@ -71,17 +73,20 @@ def get_supported_resolutions(camera_name, methods = ['GET']):
 
 @app.route("/api/camera/<camera_name>")
 def take_frame(camera_name, methods =  ['GET']):
+    
+    if camera_name not in cameras:
+        return "No camera '" + camera_name + "' found.", 400
 
     logging.debug("camera '" + camera_name + "' is about to take a frame")
 
     resolution = None
+    cam = cameras[camera_name]
+
     try:
         resolution = _extract_resolution(cam, request.args.get("quality"))
     except Exception as ex:
         logging.error(str(ex))
         return str(ex), 400
-    
-    #with camera.camera_handler("/dev/video0", camera_log_file) as cam:
     
     logging.debug("Having supported reslution " + str(resolution.width) + "x" + str(resolution.height))
 
