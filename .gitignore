@@ -1,2 +1,5 @@
 build
 camera.log
+.idea/
+client_keystore.jks
+store.jks
